@@ -15,6 +15,7 @@ import java.util.concurrent.ConcurrentMap;
 
 /**
  * 数据源切片
+ * 根据service方法上的Transactional注解决定是否是master/slave库
  * User: ketqi
  * Date: 2018-06-13 19:06
  */

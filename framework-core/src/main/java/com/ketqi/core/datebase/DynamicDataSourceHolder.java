@@ -6,15 +6,11 @@ package com.ketqi.core.datebase;
  * Date: 2018-06-13 19:14
  */
 public class DynamicDataSourceHolder {
-    private static enum DataSourceType {
+    private enum DataSourceType {
         WRITE, READ
     }
 
     private static final ThreadLocal<DataSourceType> HOLDER = new ThreadLocal<>();
-
-    /** 数据源名称 */
-    public static final String DATASOURCE_WRITE = "WRITE";
-    public static final String DATASOURCE_READ = "READ";
 
     /** 标记为写数据源 */
     public static void markWrite() {
