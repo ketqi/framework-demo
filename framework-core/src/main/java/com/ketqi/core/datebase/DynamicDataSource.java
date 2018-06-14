@@ -8,7 +8,7 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * 动态数据源
+ * 动态数据源,读写分离
  * User: ketqi
  * Date: 2018-06-13 19:30
  */
