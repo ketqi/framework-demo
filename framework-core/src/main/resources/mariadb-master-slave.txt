@@ -1,0 +1,132 @@
+﻿MySQL(mariadb)主从复制模式与复制过滤
+	https://www.cnblogs.com/anay/p/9163702.html
+	http://blog.sina.com.cn/s/blog_8ea8e9d50102ws1q.html
+sync_binlog与innodb_flush_log_at_trx_commit 浅析
+	http://blog.itpub.net/22664653/viewspace-1063134/
+
+1、两台安装好mariadb10.3.7的centos7.4，其中
+主数据库192.168.99.130，有数据
+从数据库192.168.99.131，无数据
+先把主服务器中的库导出，并导入进从数据库
+
+2、修改配置
+# mariadb 10.2以前的版本
+vim /etc/my.cnf
+#10.3之后的版本已经放到/etc/my.cnf.d/下
+vim /etc/my.cnf.d/server.cnf 
+
+主数据库配置：
+[mysqld]  
+#其他不相关配置  
+
+#唯一标示的id段，不可重复
+server-id=1 
+
+#开启二进制日志，可以自定义路径和文件名
+log-bin=mysql-bin
+
+#开启二进制中继日志并定义命名格式
+relay-log=mysq-relay-bin
+
+#二进制日志文件保存格式为混合模式（语句，行）
+binlog_format=mixed     
+
+#开启独立表空间
+innodb_file_per_table=on     
+
+#每次事务提交立即同步日志写磁盘写入策略,参数取值如下说明:
+#0：log buffer将每秒一次地写入log file中，并且log file的flush(刷到磁盘)操作同时进行。该模式下在事务提交的时候，不会主动触发写入磁盘的操作。
+#1：每次事务提交时MySQL都会把log buffer的数据写入log file，并且flush(刷到磁盘)中去，该模式为系统默认。
+#2：每次事务提交时MySQL都会把log buffer的数据写入log file，但是flush(刷到磁盘)操作并不会同时进行。该模式下，MySQL会每秒执行一次 flush(刷到磁盘)操作。
+innodb_flush_logs_at_trx_commit=2
+
+#binary log同步到磁盘次数
+#默认值是0，像操作系统刷其他文件的机制一样，MySQL不会同步到磁盘中去而是依赖操作系统来刷新binary log。
+#取值为N(N>0)，MySQL在每写N次二进制日志binary log时，会使用fdatasync()函数将它的写二进制日志binary log同步到磁盘中去。
+sync_binlog=1000   
+
+#复制的过滤项，负责过滤掉不需要复制的库和表
+replicate-wild-ignore-table=mysql.%
+replicate-wild-ignore-table=test.%
+replicate-wild-ignore-table=information_schema.%
+
+从数据库配置：
+[mysqld]  
+#其他不相关配置  
+
+#唯一标示的id段，不可重复
+server-id=2
+
+#开启二进制日志，可以自定义路径和文件名;关于从库是否要开启二进制日志：当使用多级复制，从库同时也是其他库的主库时，需要开启二进制，否则可以不开启
+#log-bin=mysql-bin
+
+#开启二进制中继日志并定义命名格式
+relay-log=mysql-relay-bin
+
+#中继日志文件索引路径名称
+relay-log_index=mysql-relay-bin.index
+
+#启用从库日志，这样可以设置链式复制;启用主->从->从模式，就要在中间的从节点上添加
+#log-slave-updates=1 
+
+#开启只读防止改变数据(read-only=1)
+read_only=on                                                  
+
+#二进制日志文件保存格式为混合模式（语句，行）
+binlog_format=mixed         
+
+#开启独立表空间
+innodb_file_per_table=on                                       
+
+#复制的过滤项，负责过滤掉不需要复制的库和表
+replicate-wild-ignore-table=mysql.%
+replicate-wild-ignore-table=test.%
+replicate-wild-ignore-table=information_schema.%
+
+
+3、启动mariadb
+#主从都执行
+    systemctl start mariadb
+	systemctl restart mariadb.service   #重启服务
+	show variables like '%log_bin';	#查看主库二进制日志状态
+	
+4、在master节点创建复制用户，一般建议创建一个专门用来复制数据的账号，以免影响的数据的安全性。
+#创建新用户
+create user 'slave'@'192.168.0.%' identified BY 'slave';
+#grant replication slave on *.* to '用户名'@'允许登陆的ip' identified by '密码';
+#repl用户必须具有REPLICATION SLAVE权限，除此之外没有必要添加不必要的权限，密码为slave。
+#说明一下192.168.0.%，这个配置是指明slave用户所在服务器，这里%是通配符，表示192.168.0.0-192.168.0.255的Server都可以以slave用户登陆主服务器当然你也可以指定固定Ip。
+grant replication client,replication slave on *.* to 'slave'@'192.168.99.131' identified by 'slave';
+
+#使得授权生效
+flush privileges;
+
+#查看当前主库的二进制日志信息
+show master status;
+记住file和position，下一步要用。
+（替换到MASTER_LOG_FILE和MASTER_LOG_POS处，我的是mysql-bin.000001和851）
+
+5、配置从数据库，将192.168.99.130作为主库
+mariadb> stop slave; #关闭Slave
+#mariadb> change master to \
+				#-> master_host='192.168.99.130', 	指定主库ip
+				#-> master_user='slave', 			指定备份账号名
+				#-> master_password='slave', 		指定备份账号的密码
+				#-> master_log_file='mysql-bin.000001', 主服务器的二进制日志名
+				#-> master_log_pos=851; 			二进制文件的位置
+				#-> MASTER_CONNECT_RETRY=10,        连接重试间隔
+				#-> MASTER_HEARTBEAT_PERIOD=2;      心跳间隔时间
+mariadb> change master to \
+				-> master_host='192.168.99.130',
+				-> master_user='slave',
+				-> master_password='slave',
+				-> master_log_file='mysql-bin.000001',
+				-> master_log_pos=851;
+
+6、从数据库开启slave
+mariadb> start slave;
+
+7、检查运行状态
+show slave status\G;
+slave_IO_running和slave_SQl_running 是运行在从服务器节点上的主从复制线程，正常情况下均为yes
+replicate_wild_ignore_table 显示的是不复制的库和表

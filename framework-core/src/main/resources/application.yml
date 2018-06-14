@@ -1,0 +1,72 @@
+info:
+  version: 1.0
+  contact:
+    site: www.51web.com
+
+log:
+  path: /home/log/51web.message
+  level: info
+  
+sms:
+  root:
+    username: sjdfowner@51web.com
+  cache:
+    force:
+      refresh: false
+  dateTimeShardingList: #按时间分片的时刻列表
+    - 2018-06-11 17:00:00
+    - 2018-06-11 17:30:00
+    - 2018-06-11 18:00:00
+    - 2018-06-12 09:00:00
+    - 2018-06-13 09:00:00
+    - 2018-06-14 09:00:00
+
+#文件上传目录,必须以/结尾
+upload:
+  images:
+    dir: /data/upload/
+    format: .jpg,.jpeg,.png,.bmp
+    limit: 2097152
+  
+spring:
+  profiles:
+      active: product
+  #i18n配置
+  messages:
+    #指定message的basename，多个以逗号分隔，如果不加包名的话，默认从classpath路径开始，默认: messages
+    basename: messages
+    #设定加载的资源文件缓存失效时间，-1的话为永不过期，默认为-1
+    cache-seconds: -1
+    #设定Message bundles的编码，默认: UTF-8
+    encoding: UTF-8
+  thymeleaf:
+    cache: false
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+
+mybatis:
+  mapper-locations: classpath*:com/sjdf/message/dao/mapper/*.xml
+  type-aliases-package: com.sjdf.message.bean
+  configuration:
+    #使全局的映射器启用或禁用缓存
+    cache-enabled: true
+    #全局启用或禁用延迟加载。当禁用时，所有关联对象都会即时加载
+    lazy-loading-enabled: true
+    #当启用时，有延迟加载属性的对象在被调用时将会完全加载任意属性。否则，每种属性将会按需要加载
+    aggressive-lazy-loading: true
+    #是否允许单条sql 返回多个数据集  (取决于驱动的兼容性) default:true
+    multiple-result-sets-enabled: true
+    #是否可以使用列的别名 (取决于驱动的兼容性) default:true
+    use-column-label: true
+    #允许JDBC 生成主键。需要驱动器支持。如果设为了true，这个设置将强制使用被生成的主键，有一些驱动器不兼容不过仍然可以执行。default:false
+    use-generated-keys: false
+    #指定MyBatis如何自动映射数据基表的列NONE:不映射 PARTIAL:部分 FULL:全部
+    auto-mapping-behavior: partial
+    #这是默认的执行类型(SIMPLE:简单;REUSE:执行器可能重复使用prepared statements语句;BATCH:执行器可以重复执行语句和批量更新）
+    default-executor-type: batch
+    #使用驼峰命名法转换字段
+    map-underscore-to-camel-case: true
+    #设置本地缓存范围session:就会有数据的共享 statement:语句范围(这样就不会有数据的共享)defalut:session
+    local-cache-scope: session
+    #设置但JDBC类型为空时,某些驱动程序要指定值,default:OTHER，插入空值时不需要指定类型
+    jdbc-type-for-null: other
